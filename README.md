@@ -106,13 +106,17 @@ This launches the web interface in your browser.
 
 This section explains, for each supported task, how the backend executes both the sequential and parallel (MPI) versions, including how data is split, processed, and aggregated.
 
----
-
 ### **C.1 Sorting**
 
-- **Data Split:** The input array is divided into equal chunks, one for each MPI process.
-- **Local Computation:** Each process sorts its assigned chunk independently using a sorting algorithm (e.g., MergeSort).
-- **Aggregation:** The sorted subarrays are sent to the master process, which merges them to produce the final sorted result.
+**How it works:**
+- The input array is divided among all MPI processes.
+- Each process sorts its assigned chunk locally (using algorithms like MergeSort or Enumeration Sort).
+- The sorted subarrays are then sent to a master process (often rank 0), which merges them into a single sorted array.
+- The merging step compares elements from each subarray and builds the final sorted result[1].
+
+**Parallelization:**
+- Data is split evenly for load balancing.
+- Communication between processes is managed using MPI_Send and MPI_Recv for sending/receiving sorted chunks[1].
   
 ![image](https://github.com/user-attachments/assets/6deb02d9-e3a5-4100-85a8-2e868a8d271f)
 
@@ -120,9 +124,16 @@ This section explains, for each supported task, how the backend executes both th
 
 ### **C.2 Word Count**
 
-- **Data Split:** The input text file is partitioned into sections, one per MPI process, ensuring words are not split at boundaries.
-- **Local Computation:** Each process counts the occurrences of words in its section, storing results in a local hash table.
-- **Aggregation:** All local hash tables are sent to the master process, which merges them to obtain the total word counts.
+**How it works:**
+- The input text file is divided into sections, one per MPI process.
+- Each process counts word occurrences in its section independently and stores results in a local hash table.
+- After counting, each process sends its hash table to the master process.
+- The master process merges all hash tables to get the final word counts for the entire file[2].
+
+**Parallelization:**
+- The workload is distributed so each process gets a nearly equal number of bytes to process.
+- Overlaps at section boundaries are handled to avoid splitting words[2].
+
 
 ![image](https://github.com/user-attachments/assets/eb94d3f6-4e41-4767-8afa-923a1c4eeb6e)
 ![image](https://github.com/user-attachments/assets/9ff31429-2204-4b21-8985-4c0d7e26d9d2)
@@ -133,9 +144,14 @@ This section explains, for each supported task, how the backend executes both th
 
 ### **C.3 Image Filter**
 
-- **Data Split:** The image is sliced horizontally, with each slice assigned to a different MPI process.
-- **Local Computation:** Each process applies the selected image filter (e.g., grayscale, blur) to its slice.
-- **Aggregation:** Filtered slices are sent to the master process, which combines them to reconstruct the complete filtered image.
+**How it works:**
+- The image is split into horizontal slices, one per MPI process.
+- Each process applies the selected filter (e.g., grayscale, blur, or other OpenCV filters) to its slice[3].
+- The filtered slices are gathered and combined to form the final processed image.
+
+**Parallelization:**
+- Each process works on a separate part of the image, enabling simultaneous filtering.
+- The output image maintains the same dimensions as the input[3].
 
 ![image](https://github.com/user-attachments/assets/2c3b9774-a4f8-4d63-81ec-8f9f3caace9f)
 ![image](https://github.com/user-attachments/assets/4a485bc9-f865-4d56-9a41-6c1a5167dbfc)
@@ -145,19 +161,29 @@ This section explains, for each supported task, how the backend executes both th
 
 ### **C.4 Linear Regression**
 
-- **Data Split:** The dataset is divided among processes, with each handling a subset of rows.
-- **Local Computation:** Each process computes partial sums required for the regression calculation.
-- **Aggregation:** Partial results are sent to the master process, which aggregates them to compute the final regression coefficients.
+**How it works:**
+- Linear regression models the relationship between a dependent variable and one or more independent variables by fitting a linear equation.
+- In parallel, the dataset is divided among processes, each calculating partial sums needed for regression coefficients.
+- The partial results are sent to the master process, which aggregates them and computes the final regression coefficients using the ordinary least squares method[4].
 
+**Parallelization:**
+- Each process works on a subset of the data, reducing computation time for large datasets.
+- Communication is required to combine partial results for the final model.
+  
 ![image](https://github.com/user-attachments/assets/3f703bb8-c8b6-415f-94f2-b3daa83ab6be)
 
 ---
 
 ### **C.5 Keyword Search**
 
-- **Data Split:** The input text is divided into segments, one per MPI process.
-- **Local Computation:** Each process searches for the keyword in its segment, recording matches and their positions.
-- **Aggregation:** Results from all processes are collected by the master process and combined to form the complete list of occurrences.
+**How it works:**
+- The input text (or array of strings) is divided into slices, one per MPI process.
+- Each process searches for the keyword in its assigned slice and records the positions or counts of matches.
+- Results from all processes are sent to the master, which aggregates them and presents the final list of occurrences[5].
+
+**Parallelization:**
+- The search workload is distributed using MPI_Scatter.
+- Each process works independently, and results are gathered at the end[5].
 
 ![image](https://github.com/user-attachments/assets/5504ed80-ca11-4f77-bb93-99c947780cdd)
 ![image](https://github.com/user-attachments/assets/c5225bc6-81d8-4164-b1ba-1e9017b32cc1)
@@ -166,9 +192,14 @@ This section explains, for each supported task, how the backend executes both th
 
 ### **C.6 Statistics**
 
-- **Data Split:** The dataset (e.g., CSV file) is divided by rows among the processes.
-- **Local Computation:** Each process computes statistics (mean, median, variance, etc.) for its subset.
-- **Aggregation:** The master process combines the partial statistics from all processes to produce overall dataset statistics.
+**How it works:**
+- The dataset (e.g., a CSV file) is divided among processes by rows.
+- Each process computes statistics (mean, median, variance, etc.) for its subset.
+- The partial statistics are sent to the master, which combines them to get the overall statistics for the dataset.
+
+**Parallelization:**
+- Row-wise splitting ensures even distribution.
+- Final aggregation may involve additional computation to combine partial statistics.
 
 ![image](https://github.com/user-attachments/assets/ce7ad257-f29c-42a2-84e3-c1c3a8238c12)
 
@@ -176,9 +207,14 @@ This section explains, for each supported task, how the backend executes both th
 
 ### **C.7 Matrix Multiplication**
 
-- **Data Split:** The two input matrices are divided into blocks or rows, with each process assigned a portion.
-- **Local Computation:** Each process performs matrix multiplication on its assigned blocks.
-- **Aggregation:** The resulting blocks are sent to the master process, which assembles them into the final result matrix.
+**How it works:**
+- Two matrices (A and B) are divided into blocks or rows.
+- Each process computes a portion of the resulting matrix by multiplying its assigned rows of A with the corresponding columns of B.
+- The computed blocks are sent to the master process, which assembles the final result.
+
+**Parallelization:**
+- Each process handles a segment of the multiplication, significantly speeding up computation for large matrices.
+- Communication is needed to distribute data and gather results.
 
 ![image](https://github.com/user-attachments/assets/963e2a45-61d3-4b79-aa89-80deba208ecb)
 
