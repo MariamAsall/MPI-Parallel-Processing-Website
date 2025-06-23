@@ -1,0 +1,4 @@
+Hello world hello world test file.
+This is a sample text file for word count.
+Unique words appear once.
+Repeat Hello world hello world again.
