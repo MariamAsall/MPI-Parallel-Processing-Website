@@ -102,11 +102,85 @@ This launches the web interface in your browser.
 3. **Parallel Run:** The app spawns an MPI job using `mpiexec` with the selected number of processes. The actual computation is distributed across processes, and results are gathered on the root process.
 4. **Results & Timing:** Both results and timings are displayed, allowing users to compare performance.
 
-### **C. Example: Sorting Task**
+## C. Task Execution Flow and Parallelization Details
 
-- Numbers are split among MPI processes.
-- Each process sorts its chunk and participates in an odd-even transposition sort for global ordering.
-- Results are gathered and displayed, along with the elapsed time for both sequential and parallel runs[1].
+This section explains, for each supported task, how the backend executes both the sequential and parallel (MPI) versions, including how data is split, processed, and aggregated.
+
+---
+
+### **C.1 Sorting**
+
+- **Data Split:** The input array is divided into equal chunks, one for each MPI process.
+- **Local Computation:** Each process sorts its assigned chunk independently using a sorting algorithm (e.g., MergeSort).
+- **Aggregation:** The sorted subarrays are sent to the master process, which merges them to produce the final sorted result.
+  
+![image](https://github.com/user-attachments/assets/6deb02d9-e3a5-4100-85a8-2e868a8d271f)
+
+---
+
+### **C.2 Word Count**
+
+- **Data Split:** The input text file is partitioned into sections, one per MPI process, ensuring words are not split at boundaries.
+- **Local Computation:** Each process counts the occurrences of words in its section, storing results in a local hash table.
+- **Aggregation:** All local hash tables are sent to the master process, which merges them to obtain the total word counts.
+
+![image](https://github.com/user-attachments/assets/eb94d3f6-4e41-4767-8afa-923a1c4eeb6e)
+![image](https://github.com/user-attachments/assets/9ff31429-2204-4b21-8985-4c0d7e26d9d2)
+
+
+
+---
+
+### **C.3 Image Filter**
+
+- **Data Split:** The image is sliced horizontally, with each slice assigned to a different MPI process.
+- **Local Computation:** Each process applies the selected image filter (e.g., grayscale, blur) to its slice.
+- **Aggregation:** Filtered slices are sent to the master process, which combines them to reconstruct the complete filtered image.
+
+![image](https://github.com/user-attachments/assets/2c3b9774-a4f8-4d63-81ec-8f9f3caace9f)
+![image](https://github.com/user-attachments/assets/4a485bc9-f865-4d56-9a41-6c1a5167dbfc)
+![image](https://github.com/user-attachments/assets/afd2d989-ba99-49ef-ada8-71fecb3a3c3f)
+
+---
+
+### **C.4 Linear Regression**
+
+- **Data Split:** The dataset is divided among processes, with each handling a subset of rows.
+- **Local Computation:** Each process computes partial sums required for the regression calculation.
+- **Aggregation:** Partial results are sent to the master process, which aggregates them to compute the final regression coefficients.
+
+![image](https://github.com/user-attachments/assets/3f703bb8-c8b6-415f-94f2-b3daa83ab6be)
+
+---
+
+### **C.5 Keyword Search**
+
+- **Data Split:** The input text is divided into segments, one per MPI process.
+- **Local Computation:** Each process searches for the keyword in its segment, recording matches and their positions.
+- **Aggregation:** Results from all processes are collected by the master process and combined to form the complete list of occurrences.
+
+![image](https://github.com/user-attachments/assets/5504ed80-ca11-4f77-bb93-99c947780cdd)
+![image](https://github.com/user-attachments/assets/c5225bc6-81d8-4164-b1ba-1e9017b32cc1)
+
+---
+
+### **C.6 Statistics**
+
+- **Data Split:** The dataset (e.g., CSV file) is divided by rows among the processes.
+- **Local Computation:** Each process computes statistics (mean, median, variance, etc.) for its subset.
+- **Aggregation:** The master process combines the partial statistics from all processes to produce overall dataset statistics.
+
+![image](https://github.com/user-attachments/assets/ce7ad257-f29c-42a2-84e3-c1c3a8238c12)
+
+---
+
+### **C.7 Matrix Multiplication**
+
+- **Data Split:** The two input matrices are divided into blocks or rows, with each process assigned a portion.
+- **Local Computation:** Each process performs matrix multiplication on its assigned blocks.
+- **Aggregation:** The resulting blocks are sent to the master process, which assembles them into the final result matrix.
+
+![image](https://github.com/user-attachments/assets/963e2a45-61d3-4b79-aa89-80deba208ecb)
 
 ---
 
